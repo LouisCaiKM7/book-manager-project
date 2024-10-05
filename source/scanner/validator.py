@@ -14,18 +14,7 @@ class Validator:
         return False
 
 # Instantiate the scanner and scan the ISBN
-ImagetestConstant = r"E:\\01_programming\\book-manager-project\\tester\\OIP.jpg"
-isbn_scanner = ISBNScanner(ImagetestConstant)  # Instantiate the ISBNScanner class
-isbn = isbn_scanner.scan_isbn()  # Call the method to scan ISBN
-print(f"Scanned ISBN: {isbn}")
 
-# Validate the scanned ISBN
-validator = Validator(isbn_scanner, isbn)
-is_valid = validator.validate_isbn()  # Call the validate_isbn method
-if is_valid:
-    print("The ISBN is valid.")
-else:
-    print("The ISBN is not valid.")
 
 
 

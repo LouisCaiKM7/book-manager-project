@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baidu Map Example</title>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=2.0&type=webgl&ak=JBww21SB86LUKzN33hDKq8AAKfSVdaOV"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        #video {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+        }
+
+        #scanBookBtn {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        #cancelBtn {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <video id="video" autoplay></video>
+    <button id="scanBookBtn">Scan Book</button>
+    <button id="cancelBtn">Cancel</button>
+
+    <script>
+        var map = new BMapGL.Map("map");
+        var defaultPoint = new BMapGL.Point(116.404, 39.915);
+        map.centerAndZoom(defaultPoint, 15);
+        var userMarker;
+
+        function sendLocationToFlask(point) {
+            fetch('/update_location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    latitude: point.lat,
+                    longitude: point.lng
+                })
+            })
+            .then(response => response.json())
+            .then(data => console.log('Location sent:', data))
+            .catch((error) => console.error('Error:', error));
+        }
+
+        function updateLocation() {
+            var geolocation = new BMapGL.Geolocation();
+            geolocation.getCurrentPosition(function(r) {
+                if (this.getStatus() == BMAP_STATUS_SUCCESS) {
+                    var userPoint = r.point;
+                    if (userMarker) {
+                        map.removeOverlay(userMarker);
+                    }
+                    userMarker = new BMapGL.Marker(userPoint);
+                    map.addOverlay(userMarker);
+                    map.setCenter(userPoint);
+                    sendLocationToFlask(userPoint);
+                } else {
+                    console.error('Location failed: ' + this.getStatus());
+                }
+            }, {enableHighAccuracy: true});
+        }
+
+        setInterval(updateLocation, 5000);
+        let scanning = true; // Flag to control scanning
+
+        function sendFrameToServer(video) {
+            if (!scanning) return;
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            // Set canvas dimensions
+            canvas.width = video.videoWidth || 640; // Fallback width
+            canvas.height = video.videoHeight || 480; // Fallback height
+
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert the canvas to a blob
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    console.error("Failed to create blob from canvas");
+                    return; // Exit if blob is not created
+                }
+
+                const formData = new FormData();
+                formData.append('frame', blob, 'frame.jpg');
+
+                // Send the frame to the server
+                fetch('/process_frame', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Frame processed:', data);
+                    if (data.isbnDetected) { // Check if ISBN is detected
+                        scanning = false; // Stop sending frames
+                        closeCamera(); // Close the camera when an ISBN is detected
+                    } else {
+                        requestAnimationFrame(() => sendFrameToServer(video)); // Continue sending frames
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending frame:', error);
+                });
+            }, 'image/jpeg');
+            if (data.isbnDetected) { // Check if ISBN is detected
+                scanning = false; // Stop sending frames
+                stopCamera(); // Stop the camera
+                alert("Book information read successfully! You can scan again."); // Notify user
+                document.getElementById('scanBookBtn').style.display = 'block'; // Show scan button again
+            } else {
+                requestAnimationFrame(() => sendFrameToServer(video)); // Continue sending frames
+            } // Test without quality
+        }
+
+        // When Scan Book is clicked, show the camera in full screen and hide the map
+        document.getElementById('scanBookBtn').addEventListener('click', function() {
+            scanning = true
+            var scanBookBtn = document.getElementById('scanBookBtn');
+            openCamera();
+                
+        });
+
+        // When Cancel is clicked, stop the camera and show the map again
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            stopCamera();
+            scanning = false;
+        });
+
+        function stopCamera() {
+            var video = document.getElementById('video');
+            var cancelBtn = document.getElementById('cancelBtn');
+            var map = document.getElementById('map');
+            var scanBookBtn = document.getElementById('scanBookBtn');
+
+            // Stop camera stream
+            var stream = video.srcObject;
+            if (stream) {
+                var tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+            }
+
+            video.style.display = 'none'; // Hide the video element
+            cancelBtn.style.display = 'none'; // Hide the cancel button
+            map.style.display = 'block'; // Show the map again
+            scanBookBtn.style.display = 'block'; // Show the scan button again
+        }
+        function openCamera() {
+            var video = document.getElementById('video');
+            var map = document.getElementById('map');
+            var cancelBtn = document.getElementById('cancelBtn');
+            var scanBookBtn = document.getElementById('scanBookBtn');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    video.srcObject = stream;
+                    video.style.display = 'block'; // Show video element
+                    map.style.display = 'none'; // Hide map
+                    cancelBtn.style.display = 'block';
+                    scanBookBtn.style.display = 'none' // Show cancel button
+                    sendFrameToServer(video); // Start sending frames to the server
+                })
+                .catch(function(err) {
+                    console.error("Error accessing camera: " + err);
+                });
+        }
+
+
+        function closeCamera() {
+            stopCamera(); // Call the stopCamera function when ISBN is detected
+            // Additional logic can be added here if needed
+        }
+    </script>
+</body>
+</html>
+
+
+<!-- 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baidu Map Example</title>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak=JBww21SB86LUKzN33hDKq8AAKfSVdaOV"></script>
+   
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    hello world
+    <div id="map"></div>
+    <script src="app.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baidu Map Example</title>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak=JBww21SB86LUKzN33hDKq8AAKfSVdaOV"></script>
+   
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // Create a map instance
+        var map = new BMapGL.Map("map");
+
+        // Create a point for Beijing
+        var point = new BMapGL.Point(116.404, 39.915); // Beijing coordinates
+
+        // Set the center of the map to Beijing
+        map.centerAndZoom(point, 15); // Zoom level can be adjusted
+
+        // Add a marker to the map
+        var geolocation = new BMapGL.Geolocation();
+        geolocation.getCurrentPosition(function(r) {
+            if (this.getStatus() == BMAP_STATUS_SUCCESS) {
+                var mk = new BMapGL.Marker(r.point);
+                map.addOverlay(mk);
+                map.setCenter(r.point);
+            } else {
+                console.error('Location failed: ' + this.getStatus());
+            }
+        }, {enableHighAccuracy: true});
+        // var marker = new BMapGL.Marker(point);
+        // map.addOverlay(marker);
+    </script>
+</body>
+</html>
+ -->

@@ -1,1 +1,0 @@
-from tools.scanner import scanner
