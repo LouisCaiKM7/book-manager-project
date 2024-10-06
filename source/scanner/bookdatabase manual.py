@@ -79,20 +79,5 @@ class database:
         self.cursor.execute("INSERT INTO Transactions (book_id, buyer_id, seller_id, amount, payment_method) VALUES (?,?,?,?,?)", (book_id, buyer_id, seller_id, amount, payment_method))
         self.conn.commit()
         self.conn.close()
-    def get_user_by_username(self, username):
-        try:
-            
-            self.cursor.execute("SELECT user_id, username, password_hash FROM Users WHERE username = ?", (username,))
-            user = self.cursor.fetchone()
-                
-            if user:
-                return {
-                    'id': user[0],
-                    'username': user[1],
-                    'password_hash': user[2]
-                }
-            return None  # No user found
-        except sqlite3.Error as e:
-            print("Database error:", e)
-            return None  # Handle the error appropriately
 
+database().create_database()

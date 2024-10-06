@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #errorMsg {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <form id="signupForm">
+            <h2>Sign Up</h2>
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Sign Up</button>
+            <div id="errorMsg"></div>
+        </form>
+        <p>Already have an account? <a href="/login">Log In</a></p>
+    </div>
+
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+            const username = this.username.value;
+            const email = this.email.value;
+            const password = this.password.value;
+
+            // Get geolocation
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    // Now you can send this data along with the form data
+                    fetch('/signup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            email: email,
+                            password: password,
+                            location: { latitude, longitude }
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.redirected ? window.location.href = response.url : null;
+                    })
+                    .catch(error => {
+                        document.getElementById('errorMsg').textContent = error.message; // Display error message
+                    });
+
+                }, function(error) {
+                    // Handle error if geolocation fails
+                    document.getElementById('errorMsg').textContent = 'Unable to retrieve location: ' + error.message;
+                });
+            } else {
+                document.getElementById('errorMsg').textContent = 'Geolocation is not supported by this browser.';
+            }
+        });
+    </script>
+</body>
+</html>
