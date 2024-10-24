@@ -5,28 +5,29 @@ from bookdatabase import database
 from infoSender import InfoSender
 from werkzeug.security import generate_password_hash,check_password_hash
 import sqlite3
+from flask import Flask, render_template, request, redirect, session, flash
+
 
 
 
 
 app = Flask(__name__)
+app.secret_key = '123' 
 
 @app.route('/')
 def index():
-    
+    # return redirect('/chat/1')
     if 'user_id' in session:
         return render_template("index.html")
     return redirect('/login') # Redirect to the login page
 
-from flask import Flask, render_template, request, redirect, session, flash
-from werkzeug.security import check_password_hash
-app.secret_key = '123' 
 
-@app.route('/logout', methods=['POST'])
+
+@app.route('/logout', methods=['GET'])
 def logout():
-    session.pop('user_id', None)  # Remove the user ID from the session
-    flash('You have been logged out.', 'success')  # Optional: flash message
-    return redirect('/login') # No content response
+    session.clear()  # Clear the session to log out the user
+    return redirect('/login')  # Redirect to the login page
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -47,8 +48,7 @@ def login():
     return render_template('login.html')
 
 
-from werkzeug.security import generate_password_hash
-import sqlite3
+
 
 @app.route('/signup', methods=['GET', 'POST']) 
 def signup():
@@ -90,6 +90,36 @@ def update_location():
     print(f'Received location: {latitude}, {longitude}')
     return jsonify({'status': 'success', 'latitude': latitude, 'longitude': longitude})
 
+@app.route('/get_books', methods=['GET'])
+def get_books():
+    db = database()
+    books = db.get_all_books()   #Function to retrieve all books from the database
+    print(books)
+    return jsonify(books)
+
+@app.route('/chat/<int:book_id>', methods=['GET', 'POST'])
+def chat(book_id):
+    db = database()
+    # Fetch book details and check if the user is the uploader
+    book = db.get_book_by_id(book_id)  # You'll need to implement this method
+    current_user = session.get('user_id')
+
+    if book and current_user == book['user_id']:
+        is_uploader = True
+    else:
+        is_uploader = False
+
+    if request.method == 'POST':
+        message = request.form['message']
+        print(current_user)
+        db.save_chat_message(book_id, current_user, message)
+        return redirect(f'/chat/{book_id}')
+    
+    messages = db.get_chat_messages(book_id)
+    return render_template('chat.html', messages=messages, book_id=book_id, is_uploader=is_uploader)
+
+
+
 @app.route('/process_frame', methods=['POST'])
 def process_frame():
     if 'frame' not in request.files:
@@ -113,8 +143,10 @@ def process_frame():
             title=results[1],
             author=results[2],
             publisher_id="null",  # Update as needed
-            location=str([latitude, longitude])  # Use received location
-        )
+            latitude=latitude,
+            longitude=longitude,
+            user_id= str(session.get('user_id')))  # Use received location
+        
 
     if isbn_detected:
         return jsonify({'isbnDetected': True, 'isbn': results[0]})  # Send ISBN back if detected

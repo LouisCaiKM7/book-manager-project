@@ -84,7 +84,7 @@
 <body>
     <div id="authLinks">
        
-        <a href="/logout">Sign Up</a>
+        <a href="/logout">Log Out</a>
         
     </div>
     <div id="map"></div>
@@ -131,6 +131,41 @@
                 }
             }, {enableHighAccuracy: true});
         }
+
+        function fetchBooks() {
+            fetch('/get_books')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(books => {
+                    books.forEach(book => {
+                        var point = new BMapGL.Point(book.longitude, book.latitude);
+                        var marker = new BMapGL.Marker(point);
+                        map.addOverlay(marker);
+            
+                        
+                        // Create a label for the book
+                        var label = new BMapGL.Label(book.title, {offset: new BMapGL.Size(20, -10)});
+                        marker.setLabel(label);
+                        label.addEventListener('click', function() {
+                            console.log(`Redirecting to chat for book ID: ${book.book_id}`); // Log the book ID
+                            window.location.href = `/chat/${book.book_id}`; // Redirect to the chat page for that book
+                        });
+                        // Add click event to the marker to redirect to the chat page
+                        
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching books:', error);
+                });
+        }
+
+        // Call fetchBooks when the map is initialized
+        fetchBooks();
+
 
         setInterval(updateLocation, 5000);
         let scanning = true;

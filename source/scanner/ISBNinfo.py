@@ -10,7 +10,5 @@ def fetch_book_info(isbn):
         if 'items' in book_data:
             return book_data['items'][0]['volumeInfo']  # Return the book details
     return None
+print(fetch_book_info(9787535896797))
 
-# ISBNinfo(9787535896797)
-# a = ISBNinfo.fetch_book_info(9787535896797)
-# print(a)

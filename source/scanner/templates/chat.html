@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Uploader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        #chatMessages {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .uploader-message {
+            background-color: #e1e1e1;
+            text-align: left;
+            align-self: flex-start;
+        }
+        .user-message {
+            background-color: #28a745;
+            color: white;
+            text-align: right;
+            align-self: flex-end;
+            font-size: 0.9em; /* Smaller font size */
+            padding: 5px 10px; /* Smaller padding */
+            margin: 5px; /* Smaller margin */
+            border-radius: 10px; 
+            word-wrap: break-word; /* Ensure text wraps */
+        }
+        form {
+            margin-top: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        input[type="text"] {
+            width: calc(100% - 100px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h2>Chat with Uploader</h2>
+    <div id="chatMessages">
+        {% for message in messages %}
+            <div class="{% if message.username == current_user %}user-message{% else %}other-message{% endif %}">
+                <p>
+                    {% if message.username == current_user %}
+                        You: {{ message.content }}
+                    {% elif is_uploader and message.username == book['uploader'] %}
+                        Uploader: {{ message.content }}
+                    {% else %}
+                        {{ message.username }}: {{ message.content }}
+                    {% endif %}
+                </p>
+            </div>
+        {% endfor %}
+    </div>
+    <form method="POST">
+        <input type="text" name="message" placeholder="Type your message" required>
+        <button type="submit">Send</button>
+    </form>
+    <a href="/">Back to Map</a>
+</body>
+</html>
+
